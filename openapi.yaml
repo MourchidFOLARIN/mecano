@@ -2185,7 +2185,11 @@ components:
         fields:
           type: object
           additionalProperties: true
-          description: "Champs à joindre au formulaire d'envoi, tels quels."
+          description: |
+            Champs à joindre au formulaire d'envoi, tels quels. Ils sont couverts
+            par la signature : le chemin de destination et les formats acceptés
+            (`allowed_formats`) sont imposés par l'API, l'hébergeur refuse
+            lui-même tout envoi qui s'en écarte.
         storage_key:
           type: string
           description: "Clé de l'objet chez l'hébergeur. À renvoyer à la confirmation."
@@ -2193,7 +2197,9 @@ components:
         expires_at:
           type: string
           format: date-time
-          description: "Au-delà, la signature est refusée par l'hébergeur."
+          description: |
+            Fin de validité annoncée par l'API, à respecter par l'appelant.
+            Indicatif : l'hébergeur applique sa propre fenêtre, plus large.
       required:
         - upload_url
         - fields

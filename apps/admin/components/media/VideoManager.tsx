@@ -29,7 +29,9 @@ const SLOTS: { role: MediaRole; label: string }[] = [
   { role: "video_interior", label: "Intérieur" },
 ];
 
-const ACCEPTED = "video/mp4,video/quicktime";
+// Extensions en plus des types MIME : un MOV filmé au téléphone arrive
+// parfois sans type déclaré, et le sélecteur de fichiers le griserait.
+const ACCEPTED = "video/mp4,video/quicktime,.mp4,.mov";
 
 interface VideoManagerProps {
   carId: number;
@@ -141,7 +143,7 @@ export function VideoManager({ carId, media }: VideoManagerProps) {
                 </>
               ) : (
                 <p className="text-muted-foreground text-xs">
-                  Aucune vidéo. MP4 ou MOV, 200 Mo maximum.
+                  Aucune vidéo. MP4 ou MOV, 100 Mo maximum.
                 </p>
               )}
 

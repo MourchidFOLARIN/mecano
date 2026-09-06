@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Admin\Media;
 
+use App\Data\Media\UploadConstraints;
 use App\Enums\MediaKind;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -54,29 +55,37 @@ final class CreateUploadSignatureRequest extends FormRequest
                 $bytes = (int) $this->input('bytes');
 
                 if ($kind === MediaKind::Photo->value) {
-                    $allowedMimes = (array) config('media.photos.allowed_mimes', ['image/jpeg', 'image/png', 'image/webp', 'image/heic']);
-                    $maxBytes = (int) config('media.photos.max_size_bytes', 15 * 1024 * 1024);
+                    $constraints = UploadConstraints::forPhotos();
 
-                    if (! in_array($mime, $allowedMimes, true)) {
-                        $validator->errors()->add('mime', 'Format d\'image non supporté. Formats acceptés : '.implode(', ', $allowedMimes));
+                    if (! in_array($mime, $constraints->allowedMimes, true)) {
+                        $validator->errors()->add('mime', 'Format d\'image non supporté. Formats acceptés : '.implode(', ', $constraints->allowedMimes));
                     }
 
-                    if ($bytes > $maxBytes) {
-                        $validator->errors()->add('bytes', 'La taille de l\'image dépasse la limite maximale autorisée (15 Mo).');
+                    if ($bytes > $constraints->maxSizeBytes) {
+                        $validator->errors()->add('bytes', 'La taille de l\'image dépasse la limite maximale autorisée ('.self::megabytes($constraints->maxSizeBytes).').');
                     }
                 } elseif ($kind === MediaKind::Video->value) {
-                    $allowedMimes = (array) config('media.videos.allowed_mimes', ['video/mp4', 'video/quicktime']);
-                    $maxBytes = (int) config('media.videos.max_size_bytes', 200 * 1024 * 1024);
+                    $constraints = UploadConstraints::forVideos();
 
-                    if (! in_array($mime, $allowedMimes, true)) {
-                        $validator->errors()->add('mime', 'Format de vidéo non supporté. Formats acceptés : '.implode(', ', $allowedMimes));
+                    if (! in_array($mime, $constraints->allowedMimes, true)) {
+                        $validator->errors()->add('mime', 'Format de vidéo non supporté. Formats acceptés : '.implode(', ', $constraints->allowedMimes));
                     }
 
-                    if ($bytes > $maxBytes) {
-                        $validator->errors()->add('bytes', 'La taille de la vidéo dépasse la limite maximale autorisée (200 Mo).');
+                    if ($bytes > $constraints->maxSizeBytes) {
+                        $validator->errors()->add('bytes', 'La taille de la vidéo dépasse la limite maximale autorisée ('.self::megabytes($constraints->maxSizeBytes).').');
                     }
                 }
             },
         ];
+    }
+
+    /**
+     * Le plafond est annoncé à partir de la configuration, jamais écrit en dur :
+     * un message figé à « 200 Mo » alors que la limite est passée à 100 Mo
+     * envoie le mécanicien réessayer un fichier que l'API refusera encore.
+     */
+    private static function megabytes(int $bytes): string
+    {
+        return round($bytes / (1024 * 1024)).' Mo';
     }
 }

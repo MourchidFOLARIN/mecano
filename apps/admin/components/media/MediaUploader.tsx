@@ -22,7 +22,11 @@ interface Pending {
   ratio: number;
 }
 
-const ACCEPTED = "image/jpeg,image/png,image/webp,image/heic";
+// Extensions en plus des types MIME : sur iOS et macOS, un HEIC est souvent
+// annoncé sans type, et un filtre limité aux types MIME le grise dans le
+// sélecteur de fichiers — la photo devient impossible à choisir.
+const ACCEPTED =
+  "image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif";
 
 export function MediaUploader({ carId, hasMainPhoto }: MediaUploaderProps) {
   const router = useRouter();

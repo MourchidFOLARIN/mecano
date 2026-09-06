@@ -25,12 +25,17 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // L'API tourne derrière un reverse proxy (Caddy) qui est le seul point
-        // d'entrée : le conteneur n'est pas joignable directement. Sans cela,
-        // Laravel voit l'IP du proxy pour tout le monde (les limiteurs de débit
-        // par IP deviennent globaux) et croit répondre en http.
+        // L'API tourne derrière un reverse proxy qui est son seul point
+        // d'entrée. Sans cela, Laravel voit l'IP du proxy pour tout le monde
+        // (les limiteurs de débit par IP deviennent globaux) et croit répondre
+        // en http.
+        //
+        // Seules les en-têtes sont fixées ici : la liste des proxys de confiance
+        // vit dans `config/trustedproxy.php`, que le middleware lit au moment de
+        // la requête. Ce détour n'est pas cosmétique — la configuration n'est
+        // pas encore chargée quand cette fonction s'exécute, et `config:cache`
+        // coupe la lecture du `.env` hors des fichiers de configuration.
         $middleware->trustProxies(
-            at: '*',
             headers: Request::HEADER_X_FORWARDED_FOR
                 | Request::HEADER_X_FORWARDED_HOST
                 | Request::HEADER_X_FORWARDED_PORT

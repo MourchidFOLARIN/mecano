@@ -31,6 +31,33 @@ export class UploadError extends Error {
 const VIDEO_ROLES: MediaRole[] = ["video_interior", "video_exterior"];
 
 /**
+ * Types MIME déduits de l'extension quand le navigateur n'en donne aucun.
+ *
+ * Safari sur iOS renvoie souvent une chaîne vide pour un HEIC, et parfois pour
+ * un MOV filmé avec l'appareil. L'API exige le type dès la demande de
+ * signature : sans ce repli, la photo la plus courante du métier — celle prise
+ * au téléphone — était refusée avant même d'être envoyée.
+ */
+const MIME_BY_EXTENSION: Record<string, string> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  heic: "image/heic",
+  heif: "image/heif",
+  mp4: "video/mp4",
+  mov: "video/quicktime",
+};
+
+function resolveMime(file: File): string {
+  if (file.type !== "") return file.type;
+
+  const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
+
+  return MIME_BY_EXTENSION[extension] ?? "";
+}
+
+/**
  * Dimensions lues dans le navigateur.
  *
  * L'hébergeur factice utilisé en développement ne renvoie pas de métadonnées ;
@@ -38,8 +65,8 @@ const VIDEO_ROLES: MediaRole[] = ["video_interior", "video_exterior"];
  * dépend la vitrine pour réserver la place de l'image et éviter que la page
  * saute au chargement.
  */
-async function readDimensions(file: File): Promise<{ width?: number; height?: number }> {
-  if (!file.type.startsWith("image/")) return {};
+async function readDimensions(file: File, mime: string): Promise<{ width?: number; height?: number }> {
+  if (!mime.startsWith("image/")) return {};
 
   try {
     const bitmap = await createImageBitmap(file);
@@ -112,23 +139,24 @@ export async function uploadMedia({
   signal,
 }: UploadOptions): Promise<AdminMedia> {
   const kind = VIDEO_ROLES.includes(role) ? "video" : "photo";
+  const mime = resolveMime(file);
 
   const { data: signed } = await bff<{ data: SignedUpload }>("admin/media/upload-signature", {
     method: "POST",
-    body: { car_id: carId, kind, mime: file.type, bytes: file.size },
+    body: { car_id: carId, kind, mime, bytes: file.size },
     signal,
   });
 
   await putToProvider(signed, file, onProgress, signal);
 
-  const { width, height } = await readDimensions(file);
+  const { width, height } = await readDimensions(file, mime);
 
   const { data: media } = await bff<{ data: AdminMedia }>(`admin/cars/${carId}/media`, {
     method: "POST",
     body: {
       storage_key: signed.storage_key,
       role,
-      mime: file.type,
+      mime,
       bytes: file.size,
       width: width ?? null,
       height: height ?? null,

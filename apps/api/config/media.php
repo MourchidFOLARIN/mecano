@@ -17,18 +17,25 @@ return [
 
     'photos' => [
         'max_size_bytes' => 15 * 1024 * 1024, // 15 MB
+        // `image/heif` accompagne `image/heic` : iOS étiquette la même photo
+        // sous l'un ou l'autre nom selon l'appareil et le navigateur.
         'allowed_mimes' => [
             'image/jpeg',
             'image/png',
             'image/webp',
             'image/heic',
+            'image/heif',
         ],
         'upload_folder' => env('CLOUDINARY_UPLOAD_FOLDER', 'mecano/cars'),
         'signature_ttl_seconds' => 600, // 10 minutes
     ],
 
     'videos' => [
-        'max_size_bytes' => 200 * 1024 * 1024, // 200 MB
+        // Cloudinary refuse tout envoi de plus de 100 Mo en une seule requête :
+        // au-delà, il faut découper le fichier en morceaux, ce que l'envoi
+        // direct du navigateur ne fait pas. Annoncer davantage ferait échouer la
+        // vidéo chez l'hébergeur après un transfert complet.
+        'max_size_bytes' => 100 * 1024 * 1024, // 100 MB
         'max_count_per_car' => 2, // 1 interior + 1 exterior
         'allowed_mimes' => [
             'video/mp4',

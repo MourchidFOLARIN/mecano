@@ -117,7 +117,7 @@ final class AdminMediaSignatureTest extends TestCase
             ->assertJson(['error' => ['code' => 'VALIDATION_FAILED']]);
     }
 
-    public function test_video_upload_rejects_size_exceeding_200mb(): void
+    public function test_video_upload_rejects_size_exceeding_100mb(): void
     {
         $brand = Brand::factory()->create();
         $car = Car::factory()->draft()->for($brand)->create();
@@ -127,7 +127,9 @@ final class AdminMediaSignatureTest extends TestCase
                 'car_id' => $car->id,
                 'kind' => 'video',
                 'mime' => 'video/mp4',
-                'bytes' => 201 * 1024 * 1024, // 201 MB > 200 MB
+                // Au-delà de 100 Mo, Cloudinary exige un envoi en morceaux que
+                // le navigateur ne fait pas : la demande doit être refusée ici.
+                'bytes' => 101 * 1024 * 1024,
             ]);
 
         $response->assertStatus(422)

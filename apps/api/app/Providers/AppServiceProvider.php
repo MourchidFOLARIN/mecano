@@ -56,9 +56,12 @@ final class AppServiceProvider extends ServiceProvider
                 cloudName: (string) config('media.cloudinary.cloud_name', 'default')
             );
 
-            // Sans clé remove.bg, on reste sur la transformation Cloudinary :
+            // Sans clé remove.bg, on reste sur les transformations Cloudinary :
             // le service doit rester démarrable même quand l'intégration
-            // payante n'est pas encore ouverte (écart E6).
+            // payante n'est pas encore ouverte (écart E6). L'amélioration
+            // automatique et le recadrage continuent de fonctionner ; seule la
+            // suppression de fond refuse, faute de fournisseur capable de la
+            // rendre (ADR 0006).
             if ((string) config('media.removebg.api_key', '') === '') {
                 return $cloudinary;
             }

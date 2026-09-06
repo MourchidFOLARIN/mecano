@@ -20,11 +20,15 @@ return [
     |
     */
 
-    'stateful' => explode(',', env('SANCTUM_STATEFUL_DOMAINS', sprintf(
+    // `array_map('trim', ...)` : les listes viennent de variables d'environnement
+    // où une virgule est souvent suivie d'une espace. Un domaine préfixé d'un
+    // blanc ne correspond à rien et retire silencieusement le frontend de la
+    // liste des origines de confiance.
+    'stateful' => array_map('trim', explode(',', env('SANCTUM_STATEFUL_DOMAINS', sprintf(
         '%s%s',
         'admin-nine-smoky-13.vercel.app,admin.garage.excellenceteam.site,web-mu-three-85.vercel.app,webgarage.excellenceteam.site,localhost,localhost:3000,localhost:3001,127.0.0.1,127.0.0.1:8000,::1',
         Sanctum::currentApplicationUrlWithPort(),
-    ))),
+    )))),
 
     /*
     |--------------------------------------------------------------------------

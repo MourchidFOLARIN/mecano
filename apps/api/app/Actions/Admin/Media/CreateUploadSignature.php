@@ -46,11 +46,7 @@ final readonly class CreateUploadSignature
             throw new VideoLimitExceededException;
         }
 
-        $constraints = new UploadConstraints(
-            maxSizeBytes: (int) config('media.videos.max_size_bytes', 200 * 1024 * 1024),
-            allowedMimes: (array) config('media.videos.allowed_mimes', ['video/mp4', 'video/quicktime']),
-            ttlSeconds: (int) config('media.videos.signature_ttl_seconds', 900),
-        );
+        $constraints = UploadConstraints::forVideos();
 
         // Cloudinary identifie la ressource par son `public_id`, sans
         // extension : c'est le point d'entrée `video` qui fixe le type.

@@ -40,17 +40,13 @@ services:
       APP_FRONTEND_URL: "${APP_FRONTEND_URL:-https://web-mu-three-85.vercel.app}"
       APP_ADMIN_URL: "${APP_ADMIN_URL:-https://admin-nine-smoky-13.vercel.app}"
 
-      CORS_ALLOWED_ORIGINS: >-
-        https://admin-nine-smoky-13.vercel.app,
-        https://admin.garage.excellenceteam.site,
-        https://web-mu-three-85.vercel.app,
-        https://webgarage.excellenceteam.site
+      # Listes séparées par des virgules, sur une seule ligne. Le style plié
+      # (`>-`) joignait les lignes avec une espace : chaque entrée arrivait
+      # préfixée d'un blanc, et une origine comparée caractère par caractère
+      # ne correspondait plus à rien.
+      CORS_ALLOWED_ORIGINS: "https://admin-nine-smoky-13.vercel.app,https://admin.garage.excellenceteam.site,https://web-mu-three-85.vercel.app,https://webgarage.excellenceteam.site"
 
-      SANCTUM_STATEFUL_DOMAINS: >-
-        admin-nine-smoky-13.vercel.app,
-        admin.garage.excellenceteam.site,
-        web-mu-three-85.vercel.app,
-        webgarage.excellenceteam.site
+      SANCTUM_STATEFUL_DOMAINS: "admin-nine-smoky-13.vercel.app,admin.garage.excellenceteam.site,web-mu-three-85.vercel.app,webgarage.excellenceteam.site"
 
       # Noms attendus par config/services.php — un écart ici casse la
       # revalidation ISR en silence : l'API signe, Next refuse.
@@ -70,6 +66,10 @@ services:
       DB_USERNAME: "${DB_USERNAME}"
       DB_PASSWORD: "${DB_PASSWORD}"
       DB_SSLMODE: "${DB_SSLMODE:-require}"
+
+      # Reverse proxies dont les en-têtes `X-Forwarded-*` sont honorées.
+      # Vide = boucle locale et plages privées (voir config/trustedproxy.php).
+      TRUSTED_PROXIES: "${TRUSTED_PROXIES:-127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,fc00::/7}"
 
       # Session / Cache / Queue
       SESSION_DRIVER: database
@@ -91,8 +91,14 @@ services:
       REMOVE_BG_MONTHLY_QUOTA: "${REMOVE_BG_MONTHLY_QUOTA:-50}"
 
     # ---- Ports --------------------------------------------------------
+    # Publié sur la boucle locale : le reverse proxy de la machine est le seul
+    # à pouvoir joindre l'API. Exposé sur toutes les interfaces, le conteneur
+    # serait atteignable sans passer par lui, et l'en-tête `X-Forwarded-For`
+    # d'un appelant direct suffirait à contourner les limiteurs par IP.
+    # API_BIND permet d'élargir quand le proxy est sur une autre machine — il
+    # faut alors renseigner son adresse dans TRUSTED_PROXIES.
     ports:
-      - "${API_PORT:-8000}:80"
+      - "${API_BIND:-127.0.0.1}:${API_PORT:-8000}:80"
 
     # ---- Volumes (persistent storage for uploaded files) --------------
     volumes:

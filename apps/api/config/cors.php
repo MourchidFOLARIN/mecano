@@ -29,12 +29,15 @@ return [
                 'https://web-mu-three-85.vercel.app',
                 'https://webgarage.excellenceteam.site',
             ],
-            // Additional custom origins from environment
-            array_filter(explode(',', (string) env('CORS_ALLOWED_ORIGINS', ''))),
-            [
-                env('APP_FRONTEND_URL'),
-                env('APP_ADMIN_URL'),
-            ]
+            // Additional custom origins from environment.
+            // Chaque entrée est nettoyée : une origine est comparée caractère
+            // par caractère par le navigateur, une espace résiduelle en tête
+            // suffit à faire échouer toutes les requêtes du frontend concerné.
+            array_filter(array_map('trim', explode(',', (string) env('CORS_ALLOWED_ORIGINS', '')))),
+            array_map('trim', [
+                (string) env('APP_FRONTEND_URL', ''),
+                (string) env('APP_ADMIN_URL', ''),
+            ])
         )
     ))),
 

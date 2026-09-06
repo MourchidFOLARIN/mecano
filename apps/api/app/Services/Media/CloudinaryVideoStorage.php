@@ -40,12 +40,24 @@ final readonly class CloudinaryVideoStorage implements VideoStorage
         );
     }
 
+    /**
+     * La signature couvre le chemin **et** les formats acceptés : sans
+     * `allowed_formats`, une signature obtenue pour un MP4 laisserait envoyer
+     * n'importe quel fichier, la seule vérification étant le type MIME déclaré
+     * par le navigateur.
+     *
+     * La taille maximale n'est pas signable — l'API d'upload ne l'expose que via
+     * un `upload_preset` — mais Cloudinary refuse de toute façon tout envoi de
+     * plus de 100 Mo en une seule requête.
+     */
     public function signedUploadParams(string $key, UploadConstraints $constraints): SignedUpload
     {
         $publicId = ltrim($key, '/');
         $timestamp = now()->timestamp;
+        $allowedFormats = implode(',', $constraints->cloudinaryFormats());
 
         $signature = $this->sign([
+            'allowed_formats' => $allowedFormats,
             'public_id' => $publicId,
             'timestamp' => $timestamp,
         ]);
@@ -56,6 +68,7 @@ final readonly class CloudinaryVideoStorage implements VideoStorage
                 'api_key' => $this->apiKey,
                 'timestamp' => $timestamp,
                 'public_id' => $publicId,
+                'allowed_formats' => $allowedFormats,
                 'signature' => $signature,
             ],
             storageKey: $publicId,
