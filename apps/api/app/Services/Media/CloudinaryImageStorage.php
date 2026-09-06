@@ -36,16 +36,32 @@ final readonly class CloudinaryImageStorage implements ImageStorage
 
     /**
      * Generate restrictive signed upload parameters for direct client upload to Cloudinary.
+     *
+     * La signature couvre le chemin **et** les formats acceptés : Cloudinary
+     * refuse lui-même un fichier hors contrainte, au lieu de s'en remettre au
+     * type MIME que le navigateur déclare (CDC §4, intégrations externes).
+     *
+     * La taille maximale, elle, n'est pas signable : l'API d'upload ne l'expose
+     * que via un `upload_preset` défini dans la console Cloudinary. Elle reste
+     * donc vérifiée à la demande de signature, et bornée par le plafond de
+     * 100 Mo que Cloudinary applique à tout envoi en une seule requête.
+     *
+     * Le dossier est porté par le `public_id`, jamais par le paramètre `folder` :
+     * Cloudinary préfixe le `public_id` reçu par le `folder` quand les deux sont
+     * envoyés. Le chemin se retrouvait alors dupliqué chez l'hébergeur
+     * (`mecano/cars/12/mecano/cars/12/{uuid}`) alors que l'API renvoyait le
+     * chemin simple, et la confirmation ne retrouvait plus l'objet.
      */
     public function signedUploadParams(string $folder, UploadConstraints $constraints): SignedUpload
     {
         $timestamp = now()->timestamp;
         $uniqueId = (string) Str::uuid();
-        $publicId = "{$folder}/{$uniqueId}";
+        $publicId = trim($folder, '/')."/{$uniqueId}";
+        $allowedFormats = implode(',', $constraints->cloudinaryFormats());
 
         // Parameters to sign in alphabetical order
         $paramsToSign = [
-            'folder' => $folder,
+            'allowed_formats' => $allowedFormats,
             'public_id' => $publicId,
             'timestamp' => $timestamp,
         ];
@@ -63,8 +79,8 @@ final readonly class CloudinaryImageStorage implements ImageStorage
         $fields = [
             'api_key' => $this->apiKey,
             'timestamp' => $timestamp,
-            'folder' => $folder,
             'public_id' => $publicId,
+            'allowed_formats' => $allowedFormats,
             'signature' => $signature,
         ];
 

@@ -41,10 +41,57 @@ final class CloudinaryImageStorageTest extends TestCase
 
         $fields = $signed->fields;
         $this->assertSame('123456789', $fields['api_key']);
-        $this->assertSame('mecano/cars', $fields['folder']);
         $this->assertSame($signed->storageKey, $fields['public_id']);
+        $this->assertSame('jpg,jpeg,png', $fields['allowed_formats']);
         $this->assertNotEmpty($fields['signature']);
         $this->assertIsInt($fields['timestamp']);
+
+        // Cloudinary préfixerait le `public_id` par le `folder` : envoyer les deux
+        // dupliquerait le dossier chez l'hébergeur et la clé renvoyée ici ne
+        // désignerait plus l'objet réellement stocké.
+        $this->assertArrayNotHasKey('folder', $fields);
+    }
+
+    public function test_signature_covers_the_path_and_the_allowed_formats(): void
+    {
+        $constraints = new UploadConstraints(
+            maxSizeBytes: 10 * 1024 * 1024,
+            allowedMimes: ['image/jpeg'],
+            ttlSeconds: 600,
+        );
+
+        $signed = $this->storage->signedUploadParams('mecano/cars/42', $constraints);
+        $fields = $signed->fields;
+
+        // Paramètres triés par ordre alphabétique, comme l'exige Cloudinary.
+        $expected = sha1(
+            "allowed_formats={$fields['allowed_formats']}"
+            ."&public_id={$fields['public_id']}"
+            ."&timestamp={$fields['timestamp']}"
+            .'secret_abc_123'
+        );
+
+        $this->assertSame($expected, $fields['signature']);
+        $this->assertSame('jpg,jpeg', $fields['allowed_formats']);
+        $this->assertStringStartsWith('mecano/cars/42/', $signed->storageKey);
+    }
+
+    /**
+     * Une signature qui ne couvrirait pas les formats laisserait envoyer
+     * n'importe quel fichier : la seule barrière serait alors le type MIME
+     * annoncé par le navigateur, que l'appelant contrôle entièrement.
+     */
+    public function test_allowed_formats_follow_the_constraints(): void
+    {
+        $constraints = new UploadConstraints(
+            maxSizeBytes: 15 * 1024 * 1024,
+            allowedMimes: ['image/webp', 'image/heic'],
+            ttlSeconds: 600,
+        );
+
+        $signed = $this->storage->signedUploadParams('mecano/cars/7', $constraints);
+
+        $this->assertSame('webp,heic', $signed->fields['allowed_formats']);
     }
 
     public function test_derivative_url_generates_correct_cdn_urls(): void
