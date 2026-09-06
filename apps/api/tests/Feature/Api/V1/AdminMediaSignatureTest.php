@@ -1,0 +1,163 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Feature\Api\V1;
+
+use App\Models\Brand;
+use App\Models\Car;
+use App\Models\User;
+use App\Models\Video;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+
+final class AdminMediaSignatureTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private function actingAsAdmin(): string
+    {
+        $user = User::factory()->create();
+
+        return $user->createToken('admin')->plainTextToken;
+    }
+
+    public function test_upload_signature_requires_authentication(): void
+    {
+        $this->postJson('/api/v1/admin/media/upload-signature', [])
+            ->assertStatus(401);
+    }
+
+    public function test_admin_can_generate_photo_upload_signature(): void
+    {
+        $brand = Brand::factory()->create();
+        $car = Car::factory()->draft()->for($brand)->create();
+
+        $response = $this->withToken($this->actingAsAdmin())
+            ->postJson('/api/v1/admin/media/upload-signature', [
+                'car_id' => $car->id,
+                'kind' => 'photo',
+                'mime' => 'image/jpeg',
+                'bytes' => 5 * 1024 * 1024, // 5 MB
+            ]);
+
+        $response->assertOk()
+            ->assertJsonStructure([
+                'data' => [
+                    'upload_url',
+                    'fields',
+                    'storage_key',
+                    'expires_at',
+                ],
+            ]);
+
+        $this->assertStringContainsString("{$car->id}", $response->json('data.storage_key'));
+    }
+
+    public function test_admin_can_generate_video_upload_signature(): void
+    {
+        $brand = Brand::factory()->create();
+        $car = Car::factory()->draft()->for($brand)->create();
+
+        $response = $this->withToken($this->actingAsAdmin())
+            ->postJson('/api/v1/admin/media/upload-signature', [
+                'car_id' => $car->id,
+                'kind' => 'video',
+                'mime' => 'video/mp4',
+                'bytes' => 50 * 1024 * 1024, // 50 MB
+            ]);
+
+        $response->assertOk()
+            ->assertJsonStructure([
+                'data' => [
+                    'upload_url',
+                    'fields',
+                    'storage_key',
+                    'expires_at',
+                ],
+            ]);
+
+        // Les vidéos passent par le point d'entrée `video` de Cloudinary,
+        // avec la même signature restrictive que les photos.
+        $this->assertStringContainsString('/video/upload', (string) $response->json('data.upload_url'));
+        $this->assertNotNull($response->json('data.fields.signature'));
+    }
+
+    public function test_photo_upload_rejects_unsupported_mime_type(): void
+    {
+        $brand = Brand::factory()->create();
+        $car = Car::factory()->draft()->for($brand)->create();
+
+        $response = $this->withToken($this->actingAsAdmin())
+            ->postJson('/api/v1/admin/media/upload-signature', [
+                'car_id' => $car->id,
+                'kind' => 'photo',
+                'mime' => 'application/pdf',
+                'bytes' => 1024,
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJson(['error' => ['code' => 'VALIDATION_FAILED']]);
+    }
+
+    public function test_photo_upload_rejects_size_exceeding_15mb(): void
+    {
+        $brand = Brand::factory()->create();
+        $car = Car::factory()->draft()->for($brand)->create();
+
+        $response = $this->withToken($this->actingAsAdmin())
+            ->postJson('/api/v1/admin/media/upload-signature', [
+                'car_id' => $car->id,
+                'kind' => 'photo',
+                'mime' => 'image/jpeg',
+                'bytes' => 16 * 1024 * 1024, // 16 MB > 15 MB
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJson(['error' => ['code' => 'VALIDATION_FAILED']]);
+    }
+
+    public function test_video_upload_rejects_size_exceeding_100mb(): void
+    {
+        $brand = Brand::factory()->create();
+        $car = Car::factory()->draft()->for($brand)->create();
+
+        $response = $this->withToken($this->actingAsAdmin())
+            ->postJson('/api/v1/admin/media/upload-signature', [
+                'car_id' => $car->id,
+                'kind' => 'video',
+                'mime' => 'video/mp4',
+                // Au-delà de 100 Mo, Cloudinary exige un envoi en morceaux que
+                // le navigateur ne fait pas : la demande doit être refusée ici.
+                'bytes' => 101 * 1024 * 1024,
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJson(['error' => ['code' => 'VALIDATION_FAILED']]);
+    }
+
+    public function test_video_upload_signature_fails_when_car_already_has_2_videos(): void
+    {
+        $brand = Brand::factory()->create();
+        $car = Car::factory()->draft()->for($brand)->create();
+
+        // Create 2 existing videos for this car
+        Video::factory()->interiorVideo()->for($car)->create();
+        Video::factory()->exteriorVideo()->for($car)->create();
+
+        $response = $this->withToken($this->actingAsAdmin())
+            ->postJson('/api/v1/admin/media/upload-signature', [
+                'car_id' => $car->id,
+                'kind' => 'video',
+                'mime' => 'video/mp4',
+                'bytes' => 10 * 1024 * 1024,
+            ]);
+
+        $response->assertStatus(409)
+            ->assertJson([
+                'error' => [
+                    'code' => 'VIDEO_LIMIT_EXCEEDED',
+                ],
+            ]);
+    }
+}

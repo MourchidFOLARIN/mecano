@@ -23,11 +23,10 @@ graph TB
     subgraph P["Plateforme Mecano"]
         WEB["apps/web<br/>Vitrine publique<br/>garage.com"]
         ADM["apps/admin<br/>Backoffice<br/>admin.garage.com"]
-        API["apps/api<br/>API JSON Laravel<br/>api.garage.com"]
+        API["apps/api<br/>API JSON Laravel<br/>mecano-api.duckdns.org"]
     end
 
     CLD["☁️ Cloudinary<br/>photos + transformations + CDN"]
-    R2["☁️ Cloudflare R2<br/>vidéos"]
     RBG["☁️ remove.bg<br/>suppression de fond (quota)"]
     WA["💬 WhatsApp<br/>lien wa.me"]
     FB["📘 Facebook Page<br/>— V2 —"]
@@ -37,11 +36,9 @@ graph TB
     WEB --> API
     ADM --> API
     API --> CLD
-    API --> R2
     API --> RBG
     API -.->|"webhook de revalidation"| WEB
     ADM -->|"upload direct signé"| CLD
-    ADM -->|"upload direct signé"| R2
     WEB --> WA
     API -.->|V2| FB
 
@@ -51,7 +48,7 @@ graph TB
 
 Points à retenir sur ce schéma :
 
-- Les fichiers médias **ne traversent jamais l'API**. Le backoffice les envoie directement à Cloudinary et R2 avec une signature délivrée par Laravel.
+- Les fichiers médias **ne traversent jamais l'API**. Le backoffice les envoie directement à Cloudinary avec une signature délivrée par Laravel.
 - L'API **appelle** la vitrine (webhook de revalidation), et pas seulement l'inverse. C'est ce qui rend la publication instantanée.
 - Facebook est représenté en pointillés : hors V1.
 

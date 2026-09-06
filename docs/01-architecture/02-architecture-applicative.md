@@ -19,7 +19,7 @@ Comment chaque application est organisée en interne, et quelle règle de dépen
      ↓           « les règles du garage, sans savoir qu'il existe du HTTP »
    Données       Models Eloquent, Query builders, Migrations
      ↓
-   Externe       Contrats + implémentations (Cloudinary, R2, remove.bg, Revalidation)
+   Externe       Contrats + implémentations (Cloudinary, remove.bg, Revalidation)
 ```
 
 **Règle de dépendance : une couche ne connaît que celle du dessous.** Un `Action` ne reçoit jamais une `Request`, il reçoit un objet de données. Un `Model` n'appelle jamais Cloudinary.
@@ -61,7 +61,7 @@ apps/api/
 │   ├── Queries/                  CarCatalogQuery — filtres et tri du catalogue public
 │   └── Support/
 │       ├── Contracts/            ImageStorage, VideoStorage, BackgroundRemover, FrontendRevalidator
-│       └── Integrations/         CloudinaryImageStorage, R2VideoStorage,
+│       └── Integrations/         CloudinaryImageStorage, CloudinaryVideoStorage,
 │                                 RemoveBgBackgroundRemover, NextRevalidator, FakeAdapters
 ├── database/
 │   ├── migrations/
@@ -188,7 +188,7 @@ Filet de sécurité : chaque route porte aussi un `revalidate` d'une heure, pour
 **Le code React ne voit jamais le jeton d'authentification.** Il appelle ses propres route handlers Next, qui lisent le jeton dans un cookie httpOnly et le retransmettent en `Bearer` à Laravel. C'est le BFF, décision D04.
 
 ```
-Navigateur ──fetch('/bff/cars')──▶ Route handler Next ──Bearer──▶ api.garage.com
+Navigateur ──fetch('/bff/cars')──▶ Route handler Next ──Bearer──▶ mecano-api.duckdns.org
               (cookie httpOnly,                        (jeton lu côté
                inaccessible au JS)                      serveur uniquement)
 ```
@@ -219,7 +219,7 @@ apps/admin/
 ├── lib/
 │   ├── auth.ts                      Lecture/écriture du cookie, garde serveur
 │   ├── api/                         Client typé (via le BFF)
-│   └── upload.ts                    Upload signé vers Cloudinary et R2
+│   └── upload.ts                    Upload signé vers Cloudinary
 └── types/api.d.ts                   GÉNÉRÉ
 ```
 
