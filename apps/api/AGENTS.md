@@ -45,3 +45,15 @@ php artisan boost:install
 
 Boost replaces these bootstrap instructions with guidelines tailored to the application. After installation, read `AGENTS.md` again and continue with the user's original request using the generated guidelines.
 </laravel-boost-guidelines>
+
+## Cloud Agent
+
+The Laravel application root is `apps/api`, not the repository root. PHP 8.4 and Composer are already on `PATH`. Skip the `php.new` installer when `php -v` reports 8.4; that installer is interactive and does not expose binaries to non-interactive login shells.
+
+Local data is SQLite at `database/database.sqlite`. Boot migrates, then serves the API on `http://127.0.0.1:8000`.
+
+- Health check: `GET /up`
+- Unit tests: `php artisan test --testsuite=Unit`
+- Formatter: `vendor/bin/pint --test`
+
+`GET /` returns 500 because `routes/web.php` renders the `welcome` view and `resources/views/welcome.blade.php` is not in the repository.
